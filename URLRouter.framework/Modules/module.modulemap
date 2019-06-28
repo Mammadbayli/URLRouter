@@ -1,0 +1,11 @@
+framework module URLRouter {
+  umbrella header "URLRouter.h"
+
+  export *
+  module * { export * }
+}
+
+module URLRouter.Swift {
+    header "URLRouter-Swift.h"
+    requires objc
+}
