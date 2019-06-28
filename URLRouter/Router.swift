@@ -10,9 +10,16 @@ import Foundation
 import UIKit
 
 public extension URL {
-     static var secondVC = URL(string: "/secondVC")!
     
-    func url(withParam params: String...) -> URL {
+    /**
+     Use for adding query parameters to a URL.
+     Add parameter names and values consecuetively.
+     
+     - Parameter params: List of parameters.
+     
+     - Returns: Void
+     */
+    func url(withParams params: String...) -> URL {
         
         let queryItems = NSMutableArray()
         
@@ -27,7 +34,6 @@ public extension URL {
             }
         }
         
-        
         var urlComps = URLComponents(string: self.relativePath)!
         
         urlComps.queryItems = queryItems as? [URLQueryItem]
@@ -41,31 +47,64 @@ public protocol Routable {
 }
 
 extension UIViewController: Routable {
-    
-}
 
+}
 
 public class Router {
     
     private init() {}
     public static let shared = Router()
     private let routingTable = NSMutableDictionary()
-    private var params = NSDictionary()
+    private let params = NSMutableDictionary()
     
+    
+    public var queryParams: NSMutableDictionary {
+       return params
+    }
+    
+    /// Registers view controllers with the routes.
+    ///
+    /// - Parameters:
+    ///   - vc: the vc for the url
+    ///   - forURL: the url to navigate to
     public func register(vc: Routable.Type, forURL url: URL) {
         routingTable[url.relativePath] = vc
     }
     
-    public func route(url: URL, params: NSDictionary? = nil) {
+    
+    /**
+     Routes to the desired url.
+     
+     - Parameter url: The person being greeted.
+     
+     - Returns: Void
+     */
+    public func route(url: URL) {
         let path = url.relativePath
         
-        if let params = params {
-            self.params = params
-        }
+        self.queryParams.removeAllObjects()
         
         DispatchQueue.main.async { [weak self] in
-            if  let vc = self?.routingTable[path] as? UIViewController.Type, let navigationController = UIApplication.shared.keyWindow?.rootViewController as? UINavigationController {
-                navigationController.pushViewController(vc.init(), animated: true)
+            if let vc = self?.routingTable[path] as? UIViewController.Type, let navigationController = UIApplication.shared.keyWindow?.rootViewController as? UINavigationController {
+                
+                
+                let query = url.query ?? ""
+                
+                let pairs = query.split(separator: "&")
+                
+                pairs.forEach { [weak self] pair in
+                    let nameValue = pair.split(separator: "=")
+                    self?.params[nameValue[0]] = nameValue[1]
+                }
+                
+                let vcInStack = navigationController.viewControllers.first { $0.isKind(of: vc) }
+                
+                //If the view controller exists in current stack pop to that controller, else push the new controller on top.
+                if vcInStack != nil {
+                    navigationController.popToViewController(vcInStack!, animated: true)
+                } else {
+                    navigationController.pushViewController(vc.init(), animated: true)
+                }
             }
         }
     }
